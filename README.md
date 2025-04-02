@@ -1,6 +1,6 @@
 # 1Shot Telegram Bot Demo
 
-This is a simple Telegram bot that shows how to implement a conversation flow which will call 1Shot to deploy an ERC20 token. 
+This is a simple Telegram bot (built with [python-telegram-bot](https://python-telegram-bot.org/)) that shows how to implement a conversation flow which will call 1Shot to deploy an ERC20 token. 
 
 ## 1. Register a Telegram Bot
 
