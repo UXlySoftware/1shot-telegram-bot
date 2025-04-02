@@ -55,6 +55,14 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Echo the user message."""
     await update.message.reply_text(update.message.text)
 
+async def whoami(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Replies with the username of the user calling the command."""
+    user = update.effective_user
+    if user.username:
+        await update.message.reply_text(f"Your username is @{user.username}; your user id is {user.id}.")
+    else:
+        await update.message.reply_text("You don't have a username set.")
+
 # Conversation states
 ARG1, ARG2, ARG3, ARG4 = range(4)
 
@@ -125,6 +133,7 @@ def main() -> None:
     # on different commands - answer in Telegram
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("whoami", whoami))
     application.add_handler(conv_handler)  # Add conversation handler
 
     # on non command i.e message - echo the message on Telegram
