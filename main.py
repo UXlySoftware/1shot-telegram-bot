@@ -15,8 +15,8 @@ import logging
 import os
 import re
 
-from telegram import ForceReply, Update, Chat
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, ConversationHandler
+from telegram import ForceReply, Update, Chat, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, ConversationHandler, CallbackQueryHandler
 
 from oneshotsdk import build_payload, get_endpoint, call_endpoint
 
@@ -129,7 +129,7 @@ async def chat_context(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     chat_title = update.message.chat.title if update.message.chat.title else "N/A"
 
     if chat_type == "private":
-        response = "📩 This is a private chat (DM) with the bot."
+        response = f"📩 This is a private chat (DM) with the bot (ID: {chat_id})."
     elif chat_type == "group":
         response = f"👥 This is a group chat: {chat_title} (ID: {chat_id})"
     elif chat_type == "supergroup":
@@ -183,6 +183,29 @@ async def get_arg4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     return ConversationHandler.END  # End the conversation
 
+async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Send a message with inline buttons when the user calls /menu."""
+    keyboard = [
+        [InlineKeyboardButton("🔹 Option 1", callback_data="option_1")],
+        [InlineKeyboardButton("🔸 Option 2", callback_data="option_2")],
+        [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("Please choose an option:", reply_markup=reply_markup)
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle button clicks."""
+    query = update.callback_query
+    await query.answer()  # Acknowledge the button press
+
+    if query.data == "option_1":
+        await query.message.reply_text("✅ You selected Option 1!")
+    elif query.data == "option_2":
+        await query.message.reply_text("✅ You selected Option 2!")
+    elif query.data == "cancel":
+        await query.message.reply_text("❌ Action canceled.")
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancel the conversation."""
     await update.message.reply_text("1Shot bot canceled.")
@@ -216,6 +239,8 @@ def main() -> None:
     )
 
     # on different commands - answer in Telegram
+    application.add_handler(CommandHandler("menu", menu))
+    application.add_handler(CallbackQueryHandler(button_handler)) 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("whoami", whoami))
