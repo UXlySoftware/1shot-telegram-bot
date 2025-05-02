@@ -1,0 +1,32 @@
+name: 1shot-telegram-bot
+
+services:
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok
+    command:
+      - "http"
+      - "http://telegram:8000"
+      - "--url=rapid-clam-infinitely.ngrok-free.app"
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    ports:
+      - 4040:4040
+
+  telegram-service:
+    image: telegram
+    pull_policy: never
+    container_name: telegram
+    volumes:
+      - ./src:/bot
+      #- ./GCP-credentials.json:/credentials/GCP-credentials.json
+    command: python main.py
+    environment:
+      TUNNEL_BASE_URL: ${TUNNEL_BASE_URL}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
+      FIRESTORE_DATABASE_ID: ${FIRESTORE_DATABASE_ID}
+      ONESHOT_API_KEY: ${ONESHOT_API_KEY}
+      ONESHOT_API_SECRET: ${ONESHOT_API_SECRET}
+      ONESHOT_BUSINESS_ID: ${ONESHOT_BUSINESS_ID}
+    build: ./src/
