@@ -10,6 +10,9 @@ from objects import (
     ConversationState
 )
 
+# the file contains helper functions that are used multiple times
+from helpers import canceler
+
 # this file shows how you can track what chats your bot has been added to
 from chattracker import track_chats
 
@@ -107,6 +110,7 @@ async def lifespan(app: FastAPI):
         Application.builder().token(TOKEN).updater(None).build()
     )
 
+    # Here is where we register the functionality of our Telegram bot, starting with a ConversationHandler
     coinucopia_entrypoint_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={

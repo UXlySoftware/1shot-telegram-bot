@@ -19,7 +19,6 @@ services:
     container_name: telegram
     volumes:
       - ./src:/bot
-      #- ./GCP-credentials.json:/credentials/GCP-credentials.json
     command: python main.py
     environment:
       TUNNEL_BASE_URL: ${TUNNEL_BASE_URL}
