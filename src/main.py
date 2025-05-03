@@ -111,7 +111,7 @@ async def lifespan(app: FastAPI):
     )
 
     # Here is where we register the functionality of our Telegram bot, starting with a ConversationHandler
-    coinucopia_entrypoint_handler = ConversationHandler(
+    entrypoint_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
             ConversationState.START_ROUTES: [
@@ -128,7 +128,7 @@ async def lifespan(app: FastAPI):
     )
 
     # handle when the user calls /start
-    app.application.add_handler(coinucopia_entrypoint_handler)
+    app.application.add_handler(entrypoint_handler)
 
     # handles updates from 1shot by selecting Telegram updates of type WebhookPayload
     app.application.add_handler(TypeHandler(type=WebhookPayload, callback=webhook_update))
