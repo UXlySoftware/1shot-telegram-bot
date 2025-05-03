@@ -43,10 +43,21 @@ After you have set the Telegram bot token, API key and secret, business id, and 
 docker compose --env-file docker-compose.env up -d
 ```
 
-# 5. Stream Logs While You Develop
+## 5. Stream Logs While You Develop
 
 You can check what's happening in your bot while it is running by streaming the logs from the telegram container:
 
 ```sh
 docker logs -f telegram
 ```
+
+# Ideas for Creating Production Bots
+
+[Firestore](https://firebase.google.com/docs/firestore) and [Cloudflare D1](https://developers.cloudflare.com/d1/) are great options for 
+database technologies for running production Telegram bot applications with non-trivial amounts of users. They also have generous free usage
+teirs. 
+
+While this starter repo is setup with Ngrok tunneling so that Telegram and 1Shot API can reach your bot for webhooks when running from 
+your laptop, [Cloud Run](https://cloud.google.com/run), [Digital Ocean Droplets](https://www.digitalocean.com/products/droplets), 
+and [Cloud Workers](https://developers.cloudflare.com/workers/languages/python/packages/fastapi/) are also great options for hosting that 
+also have good free tiers. 

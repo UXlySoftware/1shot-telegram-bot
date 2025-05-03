@@ -83,6 +83,8 @@ async def webhook_update(update: WebhookPayload, context: ContextTypes.DEFAULT_T
             return
         
         tx_memo = TransactionMemo.model_validate_json(update.data.transaction_execution_memo)
+
+        # Check what kind of transaction was executed based on the memo and handle appropriately for you application
         if tx_memo.tx_type == TxType.TOKEN_CREATION:
             token_address = None
             for log in update.data.logs:
