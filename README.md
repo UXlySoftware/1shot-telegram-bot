@@ -43,6 +43,15 @@ After you have set the Telegram bot token, API key and secret, business id, and 
 docker compose --env-file docker-compose.env up -d
 ```
 
+The `docker-compose.yaml` file is setup to mount the `src` directory into the `/bot` directory of the Telegram bot's container. You can
+make edits to the source code while the bot is running and then reload the bot quickly like this:
+
+```sh
+docker compose restart telegram-service
+```
+
+**NOTE:** If you add new environment variables or change the docker configuration you'll need to run `docker compose down` then rerun `docker compose --env-file docker-compose.env up -d`
+
 ## 5. Stream Logs While You Develop
 
 You can check what's happening in your bot while it is running by streaming the logs from the telegram container:
