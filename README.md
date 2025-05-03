@@ -50,7 +50,8 @@ make edits to the source code while the bot is running and then reload the bot q
 docker compose restart telegram-service
 ```
 
-**NOTE:** If you add new environment variables or change the docker configuration you'll need to run `docker compose down` then rerun `docker compose --env-file docker-compose.env up -d`
+> [!NOTE] 
+> The If you add new environment variables or change the docker configuration you'll need to run `docker compose down` then rerun `docker compose --env-file docker-compose.env up -d`
 
 ## 5. Stream Logs While You Develop
 
