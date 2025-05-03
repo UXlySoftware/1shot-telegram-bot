@@ -7,9 +7,10 @@ services:
     command:
       - "http"
       - "http://telegram:8000"
-      - "--url=rapid-clam-infinitely.ngrok-free.app"
+      - "--url=${TUNNEL_BASE_URL}"
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+      TUNNEL_BASE_URL: ${TUNNEL_BASE_URL}
     ports:
       - 4040:4040
 
