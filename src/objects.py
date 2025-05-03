@@ -12,10 +12,10 @@ class TxType(Enum):
     TOKENS_MINTED = 2
     TOKENS_TRANSFERRED = 3
 
+# use the memo field when you execute a transaction to include context on the callback to your bot
 class TransactionMemo(BaseModel):
-    tx_type: TxType = Field(..., description="The kind of transaction that was executed."
-    )
-    associated_user_id: int
+    tx_type: TxType = Field(..., description="The kind of transaction that was executed.") 
+    associated_user_id: int = Field(..., description="The user id of the user that executed the transaction.")
     note_to_user: Optional[str] = Field(None, description="Info to relay to the associated_user")
 
 # user enums to define the different states of your conversation flows

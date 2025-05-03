@@ -10,13 +10,14 @@ from objects import (
     ConversationState
 )
 
+# this file shows how you can track what chats your bot has been added to
 from chattracker import track_chats
 
+# this file shows how you can implement a non-trivial conversation flow
 from deploytoken import get_token_deployment_conversation_handler
 
-from uxly_1shot_client import (
-    WebhookPayload,
-)
+# the 1Shot Python SDK implements a Pydantic dataclass model for Webhook callback payloads
+from uxly_1shot_client import WebhookPayload
 
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse, Response
@@ -35,8 +36,6 @@ from telegram.constants import ParseMode
 
 import uvicorn
 
-
-
 # Enable logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -45,20 +44,18 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Define configuration constants
-URL = "rapid-clam-infinitely.ngrok-free.app"
-PORT = 8000
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # nosec B105
+URL = os.getenv("TUNNEL_BASE_URL") # this is the base url where Telegrma will send update webhooks to
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Get this token from @BotFather
+PORT = 8000 # The port that uvicorn will attach to
 
-# Handlers
+# This is an entrypoint handler for the example bot, it gets triggered when a user types /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Start the bot and show the main menu."""
 
     buttons = []
 
-    text = "Welcome to Coinucopia.Finance, lets get started! 🥳\n\n"
-    text += "Looks like you are new, you'll need to set an EVM address to receive tokens from Coinucopia.Finance.\n\n"
-    text += "You can set an address by clicking the \"📍 Set My Address\" button and pasting in a valid EVM address.\n\n"
-    text += "Be sure this address is accessible across networks."
+    text = "1Shot API is the easiest way to build Telegram bots with onchain functionaity!\n\n"
+    text += "Use this simple bot as a starting point\n\n"
     buttons.append([InlineKeyboardButton("🚀 Deploy a Token", callback_data="deploytoken")])
 
     keyboard = InlineKeyboardMarkup(buttons)
@@ -73,6 +70,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data[ConversationState.START_OVER] = False
     return ConversationState.START_ROUTES
 
+# This handles webhooks coming from 1Shot API
 async def webhook_update(update: WebhookPayload, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle incoming webhook updates."""
     # Extract the payload from the update
@@ -98,6 +96,8 @@ async def webhook_update(update: WebhookPayload, context: ContextTypes.DEFAULT_T
                     parse_mode=ParseMode.HTML
                 )
 
+# lifespane is used by FastAPI on startup and shutdown
+# When the server is shutting down, the code after "yield" will be executec
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan event to initialize and shutdown the Telegram bot."""
@@ -141,6 +141,8 @@ async def lifespan(app: FastAPI):
 # FastAPI app
 app = FastAPI(lifespan=lifespan)
 
+# This route is for Telegram to send Updates to the bot about message and interactions from users
+# Its more efficient that using loing polling
 @app.post("/telegram")
 async def telegram(request: Request):
     data = await request.json()
@@ -154,12 +156,15 @@ async def oneshot_updates(request: Request):
     try:
         body = await request.json()
         webhook_payload = WebhookPayload(**body)
-        # we put objects of type WebhookPayload into the update queue which will trigger the webhook_update handler via the TypeHandler registered on startup
+
+        # we put objects of type WebhookPayload into the update queue
+        # Updates will trigger the webhook_update handler via the TypeHandler registered on startup
         await app.application.update_queue.put(webhook_payload)
         return Response(status_code=HTTPStatus.OK)
     except Exception:
         return Response(status_code=HTTPStatus.NOT_ACCEPTABLE)
 
+# This is a simple healthcheck endpoint to verify that the bot is running
 @app.get("/healthcheck")
 async def health():
     return PlainTextResponse("The bot is still running fine :)", status_code=HTTPStatus.OK)
