@@ -1,7 +1,8 @@
-# 1Shot Telegram Bot Demo
+# 1Shot Telegram Bot Starter Repo
 
-This is a simple Telegram bot (built with [python-telegram-bot](https://python-telegram-bot.org/)) and 
-[FastAPI](https://fastapi.tiangolo.com/) that shows how to implement a conversation flow and webhook handling.
+This is a starter repo for building a Telegram bot (built with [python-telegram-bot](https://python-telegram-bot.org/)) based on the 
+[FastAPI](https://fastapi.tiangolo.com/) web framework. It demonstrates how to perform conversation flows, call the 1Shot API to 
+trigger onchain transactions, and handle webhook callbacks from both Telegram and 1Shot API.
 
 Interactions with [1Shot API](https://1shotapi.com) are done with the [1Shot Python SDK](https://pypi.org/project/uxly-1shot-client/). 
 
