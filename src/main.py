@@ -4,22 +4,32 @@ import logging
 from http import HTTPStatus
 from contextlib import asynccontextmanager
 
+# useful object patterns for a Telegram bot that interacts with the 1Shot API
 from objects import (
     TransactionMemo,
     TxType,
     ConversationState
 )
 
-# the file contains helper functions that are used multiple times
-from helpers import canceler
+# the file contains helper functions that are used ofteen
+from helpers import (
+    canceler,
+    get_token_deployer_endpoint_creation_payload
+)
 
 # this file shows how you can track what chats your bot has been added to
 from chattracker import track_chats
 
-# this file shows how you can implement a non-trivial conversation flow
+# this file shows how you can implement a non-trivial conversation flow that deployes and ERC20 token
 from deploytoken import get_token_deployment_conversation_handler
 
-# the 1Shot Python SDK implements a Pydantic dataclass model for Webhook callback payloads
+# Auth against 1Shot API is done in oneshot.py where we implement a singleton pattern
+from oneshot import (
+    oneshot_client, # the 1Shot API async client that we instantiated in oneshot.py
+    BUSINESS_ID # The organization id for your 1Shot API account
+)
+
+# the 1Shot Python SDK implements a helpful Pydantic dataclass model for Webhook callback payloads
 from uxly_1shot_client import WebhookPayload
 
 from fastapi import FastAPI, Request
@@ -46,8 +56,7 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
-# Define configuration constants
-URL = os.getenv("TUNNEL_BASE_URL") # this is the base url where Telegrma will send update webhooks to
+URL = os.getenv("TUNNEL_BASE_URL") # this is the base url where Telegram will send update callbacks to
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Get this token from @BotFather
 PORT = 8000 # The port that uvicorn will attach to
 
@@ -101,7 +110,7 @@ async def webhook_update(update: WebhookPayload, context: ContextTypes.DEFAULT_T
                     parse_mode=ParseMode.HTML
                 )
 
-# lifespane is used by FastAPI on startup and shutdown
+# lifespane is used by FastAPI on startup and shutdown: https://fastapi.tiangolo.com/advanced/events/
 # When the server is shutting down, the code after "yield" will be executec
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -110,7 +119,37 @@ async def lifespan(app: FastAPI):
         Application.builder().token(TOKEN).updater(None).build()
     )
 
+    # lets start by checking that we have an escrow wallet provisioned for our account on the Sepolia network
+    # if not we will exit since we must have one to continue
+    wallets = await oneshot_client.wallets.list(BUSINESS_ID, {"chain": "11155111", })
+    if (len(wallets.response) != 1) and (float(wallets.response[0].account_balance_details.balance) > 0.0001):
+        raise RuntimeError(
+            "Escrow wallet not provisioned or insufficient balance on the Sepolia network. "
+            "Please ensure an escrow wallet exists and has sufficient funds by logging into https://1shotapi.com."
+        )
+
+    # to keep this demo self contained, we are going to check our 1Shot API account for an existing transaction endpoint for the 
+    # contract at 0xA1BfEd6c6F1C3A516590edDAc7A8e359C2189A61 on the Sepolia network, if we don't have one, we'll create it
+    # then we'll use that endpoint in the conversation flow to deploy tokens from Telegram
+    # for a more serious application you will probably create your requried entrypont contract function endpionts ahead of time
+    # and input their transaction ids as environment variables
+    transaction_endpoints = await oneshot_client.transactions.transactions.list(
+        business_id=BUSINESS_ID,
+        params={"chain_id": "11155111", "name": "1Shot Demo Sepolia Token Deployer"}
+    )
+    if len(transaction_endpoints.response) == 0:
+        deployer_endpoint_payload = get_token_deployer_endpoint_creation_payload(
+            chain_id="11155111",
+            contract_address="0xA1BfEd6c6F1C3A516590edDAc7A8e359C2189A61",
+            escrow_wallet_id=wallets.response[0].id
+        )
+        new_transaction_endpoint = await oneshot_client.transactions.create(
+            business_id=BUSINESS_ID,
+            params=deployer_endpoint_payload
+        )
+
     # Here is where we register the functionality of our Telegram bot, starting with a ConversationHandler
+    # You can nest conversation flows inside each other for more complex applications: https://docs.python-telegram-bot.org/en/stable/examples.nestedconversationbot.html
     entrypoint_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={

@@ -5,7 +5,10 @@ from typing import Optional
 
 from enum import Enum
 
-# extends this to include the new transaction types specific to your bot's use case
+# Pydantic data classes and Enums are useful for creating transaction memos that can be validated 
+
+# extend this to include the new transaction types specific to your bot's use case
+# switch on the type for dynamic handling logic like messaging your user once their token has been mined
 class TxType(Enum):
     TOKEN_CREATION = 0
     ADMIN_ADDED = 1
@@ -18,7 +21,7 @@ class TransactionMemo(BaseModel):
     associated_user_id: int = Field(..., description="The user id of the user that executed the transaction.")
     note_to_user: Optional[str] = Field(None, description="Info to relay to the associated_user")
 
-# user enums to define the different states of your conversation flows
+# user enums to define the different states of your Telegram bot conversation flows
 class ConversationState(Enum):
     START_ROUTES = 1
     ASKING_ADDRESS = 2

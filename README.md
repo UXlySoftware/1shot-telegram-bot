@@ -18,6 +18,9 @@ Log into 1Shot and create a new API key and secret from the [API Keys](https://a
 
 Also, go to the [Organizations page](https://app.1shotapi.com/organizations) and click on the "Details" button of the organization your are working in; grab its business ID. 
 
+> [!IMPORTANT] 
+> Before you leave the 1Shot API portal, be sure to go to the [Escrow Wallets]() tab and create an escrow wallet for Sepolia Network and fund it with some testnet funds
+
 Enter these three credentials into [`docker-compose.env`](/docker-compose.env#L6) in the `ONESHOT_API_KEY`, `ONESHOT_API_SECRET`, and `ONESHOT_BUSINESS_ID` variables. 
 
 ## 3. Ngrok for Catching Webhooks

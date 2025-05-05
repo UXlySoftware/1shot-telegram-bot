@@ -19,58 +19,27 @@ from telegram.helpers import mention_html
 
 logger = logging.getLogger(__name__)
 
-from oneshot import oneshot_client
+from oneshot import (
+    oneshot_client,
+    BUSINESS_ID
+)
 
 from helpers import (
-    is_valid_ethereum_address, 
-    get_chain_escrow_wallet_address,
     is_nonnegative_integer, 
     canceler, 
-    get_active_chains,
-    get_chain_deployer_endpoint,
-    get_chain_name_from_chain_id,
-    make_token_mint_endpoint,
-    make_token_grant_admin_endpoint,
     convert_to_wei
 )
 from objects import (
-    TransactionLog, 
     TransactionMemo,
     TxType,
-    Token, 
     ConversationState, 
-    BlockExplorers
-)
-
-from firestore import (
-    log_execution_id,
-    store_token, 
-    get_token_by_execution_id, 
-    set_token_attributes
 )
 
 async def deploy_token_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Start the conversation and ask for the name of the token."""
-    chains = get_active_chains()
-    buttons = [
-        [InlineKeyboardButton(
-            f"{chain.name}",
-            callback_data=f"get_chain:{chain.value}"
-        )]
-        for chain in chains
-    ]
-    keyboard = InlineKeyboardMarkup(buttons)
-    await update.callback_query.answer()  # Acknowledge the callback query
-    await update.callback_query.edit_message_text(text="Let's build a token! Which chain do you want it on?", reply_markup=keyboard)
-    return ConversationState.TOKEN_CHAIN
-
-async def get_chain(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Store the selected chain and ask for the token name."""
-    chain_id = str(update.callback_query.data.split(":")[1])
-    context.user_data["chain"] = chain_id
+    """Ask the user what name they want to give to their token."""
 
     await update.callback_query.answer()  # Acknowledge the callback query
-    await update.callback_query.edit_message_text(text="Okay, what do you want to name your token?")
+    await update.callback_query.edit_message_text(text="What do you want to name your token?")
     return ConversationState.TOKEN_NAMING
 
 async def get_naming(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -114,22 +83,39 @@ async def finalize_token_deployment(update: Update, context: ContextTypes.DEFAUL
         return ConversationState.TOKEN_PREMINT
 
     # Gather all arguments
-    chain_id = context.user_data["chain"]
+    chain_id = '11155111' # Sepolia testnet
     name = context.user_data["name"]
     ticker = context.user_data["ticker"]
     description = context.user_data["description"]
     image_file_id = context.user_data.get("image", None)  # Optional, in case no image was uploaded
-    admin = get_chain_escrow_wallet_address(chain_id)
+    
+    # Its better to store escrow wallet ids as enironment variables
+    # but we will look it to demonstrate how to fetch wallets from 1Shot API
+    # For this demo to work, make sure there is only 1 wallet for the Sepolia network
+    wallet = await oneshot_client.wallets.list(BUSINESS_ID, {"chain_id": chain_id})
 
-    payload = build_payload(
-        name=name, ticker=ticker, admin=admin, premint=convert_to_wei(premint)
+    transaction_endpiont = await oneshot_client.transactions.list(
+        business_id=BUSINESS_ID,
+        params={"page": 1, "page_size": 10, "chain_id": "11155111", "name": "1Shot Demo Sepolia Token Deployer"}
     )
 
+    # This message will come back to the bot when the transaction is executed
+    # We can use the info to figure out how to react
     memo = TransactionMemo(
         tx_type=TxType.TOKEN_CREATION.value,
         associated_user_id=update.effective_user.id
     )
-    execution = call_endpoint(get_chain_deployer_endpoint(chain_id), payload, memo.model_dump_json())
+
+    execution = await oneshot_client.transactions.execute(
+        transaction_id=transaction_endpiont.response[0].id,
+        params={
+            "name": name,
+            "ticker": ticker,
+            "admin": wallet.response[0].account_address,
+            "premint": convert_to_wei(premint),
+        },
+        memo=memo.model_dump_json()
+    )
 
     token = Token(
         name=name,
@@ -143,17 +129,11 @@ async def finalize_token_deployment(update: Update, context: ContextTypes.DEFAUL
         execution_id=execution.id,
     )
 
-    tx_log = TransactionLog(
-        execution_id=execution.id, 
-        tx_type="TOKEN_CREATION",
-        associated_user_id=update.effective_user.id
+    buttons = [[InlineKeyboardButton(text="Back", callback_data="start")]]
+    keyboard = InlineKeyboardMarkup(buttons)
+    await update.message.reply_text(
+        "✅ Your token is being deployed! You will be notified once it's ready.", reply_markup=keyboard
     )
-    if await store_token(token) and await log_execution_id(tx_log):
-        buttons = [[InlineKeyboardButton(text="Back", callback_data="start")]]
-        keyboard = InlineKeyboardMarkup(buttons)
-        await update.message.reply_text(
-            "✅ Your token is being deployed! You will be notified once it's ready.", reply_markup=keyboard
-        )
 
     context.user_data[ConversationState.START_OVER] = True
 
@@ -221,7 +201,6 @@ def get_token_deployment_conversation_handler() -> ConversationHandler:
             ],
         states={
             ConversationState.TOKEN_NAMING: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_naming)],
-            ConversationState.TOKEN_CHAIN: [CallbackQueryHandler(get_chain, pattern="^get_chain:")],
             ConversationState.TOKEN_TICKER: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_description)],
             ConversationState.TOKEN_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_image)],
             ConversationState.TOKEN_IMAGE: [MessageHandler(filters.PHOTO & ~filters.COMMAND, get_premint)],
