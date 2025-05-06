@@ -89,7 +89,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def webhook_update(update: WebhookPayload, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handle incoming webhook updates."""
     # Extract the payload from the update
-    event_type = update.eventName
+    event_type = update.event_name
 
     if event_type == "TransactionExecutionSuccess":
         # check for the Transaction Memo, if its not set, we don't know what to do with it
@@ -105,7 +105,7 @@ async def webhook_update(update: WebhookPayload, context: ContextTypes.DEFAULT_T
             for log in update.data.logs:
                 if log.name == "TokenCreated":
                     token_address = log.args[0]
-            successful_token_deployment(token_address, tx_memo, context)
+            await successful_token_deployment(token_address, tx_memo, context)
         else:
             # implement other transaction types as needed
             logger.error(f"Unknown transaction type: {tx_memo.tx_type}")
@@ -211,7 +211,8 @@ async def oneshot_updates(request: Request):
         # Updates will trigger the webhook_update handler via the TypeHandler registered on startup
         await app.application.update_queue.put(webhook_payload)
         return Response(status_code=HTTPStatus.OK)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error processing 1Shot webhook: {e}")
         return Response(status_code=HTTPStatus.NOT_ACCEPTABLE)
 
 # This is a simple healthcheck endpoint to verify that the bot is running
