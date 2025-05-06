@@ -66,7 +66,7 @@ After you have set the Telegram bot token, API key and secret, business id, and 
 docker compose --env-file docker-compose.env up -d
 ```
 
-You can see the callbacks coming to your bot from Telegram and 1Shot API by using the [Ngrok agent dashboard](http://localhost:4040) provided by the Ngrok container. This is will be a helpful debugging tool while you develope your applciation.
+You can see the callbacks coming to your bot from Telegram and 1Shot API by using the [Ngrok agent dashboard](http://localhost:4040) (this link won't work if the ngrok container is up) provided by the Ngrok container. This is will be a helpful debugging tool while you develope your applciation.
 
 The `docker-compose.yaml` file is setup to mount the `src` directory into the `/bot` directory of the Telegram bot's container. You can
 make edits to the source code while the bot is running and then reload the bot quickly like this:
@@ -85,6 +85,10 @@ You can check what's happening in your bot while it is running by streaming the 
 ```sh
 docker logs -f telegram
 ```
+
+## 8. Finish the Bot and Get Users!
+
+At this point, you should be able to interact with your bot on Telegram. Try running the `/start` command to start a conversation flow in order to launch a token. The sky is the limit as far as capabilities an business models that you can explore.
 
 # Ideas for Creating Production Bots
 
