@@ -11,7 +11,7 @@ from objects import (
     ConversationState
 )
 
-# the file contains helper various helper functions for the bot
+# the file contains various helper functions for the bot
 from helpers import (
     canceler,
     get_token_deployer_endpoint_creation_payload
