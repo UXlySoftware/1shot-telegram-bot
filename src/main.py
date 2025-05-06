@@ -33,9 +33,9 @@ from oneshot import (
 )
 
 # the 1Shot Python SDK implements a helpful Pydantic dataclass model for Webhook callback payloads
-from uxly_1shot_client import WebhookPayload
+from uxly_1shot_client import WebhookPayload, verify_webhook
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import PlainTextResponse, Response
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -151,7 +151,7 @@ async def lifespan(app: FastAPI):
             params=deployer_endpoint_payload
         )
     else:
-        logger.info("Transaction endpoint already exists, skipping creation.")
+        logger.info(f"Transaction endpoint already exists, skipping creation.")
         
     # Here is where we register the functionality of our Telegram bot, starting with a ConversationHandler
     # You can nest conversation flows inside each other for more complex applications: https://docs.python-telegram-bot.org/en/stable/examples.nestedconversationbot.html
@@ -206,6 +206,31 @@ async def oneshot_updates(request: Request):
     try:
         body = await request.json()
         webhook_payload = WebhookPayload(**body)
+
+        # we'll now authenticate the callback to make sure it came from 1Shot API
+        # we need to look up the public key of our endpoint (each endpoint creates has its own public key) 
+        # this will be slow in production, so if you have a lot of users making transactions, a better 
+        # strategy would be to store the public keys in your bot's database for faster access
+        # more info on 1Shot Webhooks here: https://docs.1shotapi.com/transactions.html#webhooks
+        transaction_endpoints = await oneshot_client.transactions.list(
+            business_id=BUSINESS_ID,
+            params={"chain_id": "11155111", "name": "1Shot Demo Sepolia Token Deployer"}
+        )
+        webhook_public_key = transaction_endpoints.response[0].public_key
+
+        signature = body.pop("signature", None)
+
+        if not signature or not webhook_public_key:
+            raise HTTPException(status_code=400, detail="Signature or public key missing")
+        
+        is_valid = verify_webhook(
+            body=body,
+            signature=signature,
+            public_key=webhook_public_key
+        )
+
+        if not is_valid:
+            raise HTTPException(status_code=403, detail="Invalid signature")
 
         # we put objects of type WebhookPayload into the update queue
         # Updates will trigger the webhook_update handler via the TypeHandler registered on startup
