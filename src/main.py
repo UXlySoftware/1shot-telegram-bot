@@ -111,7 +111,7 @@ async def webhook_update(update: WebhookPayload, context: ContextTypes.DEFAULT_T
             logger.error(f"Unknown transaction type: {tx_memo.tx_type}")
 
 # lifespane is used by FastAPI on startup and shutdown: https://fastapi.tiangolo.com/advanced/events/
-# When the server is shutting down, the code after "yield" will be executec
+# When the server is shutting down, the code after "yield" will be executed when shutting down
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan event to initialize and shutdown the Telegram bot."""
