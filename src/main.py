@@ -69,7 +69,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     buttons = []
 
-    text = "1Shot API is the easiest way to build Telegram bots with onchain functionaity!\n\n"
+    text = "1Shot API is the easiest way to build Telegram bots with onchain functionality!\n\n"
     text += "Use this simple bot as a starting point\n\n"
     buttons.append([InlineKeyboardButton("🚀 Deploy a Token", callback_data="deploytoken")])
 
@@ -133,7 +133,7 @@ async def lifespan(app: FastAPI):
     # then we'll use that endpoint in the conversation flow to deploy tokens from a Telegram conversation
     # for a more serious application you will probably create your required contract function endpionts ahead of time
     # and input their transaction ids as environment variables
-    transaction_endpoints = await oneshot_client.transactions.transactions.list(
+    transaction_endpoints = await oneshot_client.transactions.list(
         business_id=BUSINESS_ID,
         params={"chain_id": "11155111", "name": "1Shot Demo Sepolia Token Deployer"}
     )

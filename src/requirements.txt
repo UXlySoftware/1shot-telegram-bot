@@ -1,3 +1,4 @@
+fastapi[standard]
 python-telegram-bot
 uxly-1shot-client
 pydantic
