@@ -192,7 +192,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # This route is for Telegram to send Updates to the bot about message and interactions from users
-# Its more efficient that using loing polling
+# Its more efficient that using long polling
 @app.post("/telegram")
 async def telegram(request: Request):
     data = await request.json()
