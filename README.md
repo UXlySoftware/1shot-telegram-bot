@@ -100,3 +100,6 @@ While this starter repo is setup with Ngrok tunneling so that Telegram and 1Shot
 your laptop, [Cloud Run](https://cloud.google.com/run), [Digital Ocean Droplets](https://www.digitalocean.com/products/droplets), 
 and [Cloud Workers](https://developers.cloudflare.com/workers/languages/python/packages/fastapi/) are also great options for hosting that 
 also have good free tiers. 
+
+You should also remember that onchain transaction cost money in the form on network funds, so you'll want to think about how and what to 
+charge users for so that you can make enough to pay for operating you bot! Telegram has a built in platform currency called [Stars](https://telegram.org/blog/telegram-stars). Billing users in Telegram Stars helps build trust due to its convenience and their security as it doesn't require them enter billing details into a new application or connect their wallet to an unknown web application. 

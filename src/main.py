@@ -127,6 +127,8 @@ async def lifespan(app: FastAPI):
             "Escrow wallet not provisioned or insufficient balance on the Sepolia network. "
             "Please ensure an escrow wallet exists and has sufficient funds by logging into https://app.1shotapi.dev/escrow-wallets."
         )
+    else:
+        logger.info("Escrow wallet is provisioned and has sufficient funds.")
 
     # to keep this demo self contained, we are going to check our 1Shot API account for an existing transaction endpoint for the 
     # contract at 0xA1BfEd6c6F1C3A516590edDAc7A8e359C2189A61 on the Sepolia network, if we don't have one, we'll create it automatically
@@ -138,6 +140,7 @@ async def lifespan(app: FastAPI):
         params={"chain_id": "11155111", "name": "1Shot Demo Sepolia Token Deployer"}
     )
     if len(transaction_endpoints.response) == 0:
+        logger.info("Creating new transaction endpoint for token deployer contract.")
         deployer_endpoint_payload = get_token_deployer_endpoint_creation_payload(
             chain_id="11155111",
             contract_address="0xA1BfEd6c6F1C3A516590edDAc7A8e359C2189A61",
@@ -147,7 +150,9 @@ async def lifespan(app: FastAPI):
             business_id=BUSINESS_ID,
             params=deployer_endpoint_payload
         )
-
+    else:
+        logger.info("Transaction endpoint already exists, skipping creation.")
+        
     # Here is where we register the functionality of our Telegram bot, starting with a ConversationHandler
     # You can nest conversation flows inside each other for more complex applications: https://docs.python-telegram-bot.org/en/stable/examples.nestedconversationbot.html
     entrypoint_handler = ConversationHandler(

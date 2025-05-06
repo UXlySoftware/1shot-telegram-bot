@@ -125,6 +125,7 @@ async def finalize_token_deployment(update: Update, context: ContextTypes.DEFAUL
         },
         memo=memo.model_dump_json()
     )
+    logger.info(f"Token creation transaction executed: {execution.id}")
 
     buttons = [[InlineKeyboardButton(text="Back", callback_data="start")]]
     keyboard = InlineKeyboardMarkup(buttons)
