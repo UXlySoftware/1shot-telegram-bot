@@ -88,6 +88,8 @@ docker logs -f telegram
 
 ## 8. Finish the Bot and Get Users!
 
+![1Shot Bot Demo](./demo.gif)
+
 At this point, you should be able to interact with your bot on Telegram. Try running the `/start` command to start a conversation flow in order to launch a token. The sky is the limit as far as capabilities an business models that you can explore.
 
 # Ideas for Creating Production Bots
