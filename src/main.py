@@ -21,7 +21,10 @@ from helpers import (
 from chattracker import track_chats
 
 # this file shows how you can implement a non-trivial conversation flow that deployes and ERC20 token
-from deploytoken import get_token_deployment_conversation_handler
+from deploytoken import (
+    get_token_deployment_conversation_handler,
+    successful_token_deployment
+)
 
 # Auth against 1Shot API is done in oneshot.py where we implement a singleton pattern
 from oneshot import (
@@ -102,13 +105,10 @@ async def webhook_update(update: WebhookPayload, context: ContextTypes.DEFAULT_T
             for log in update.data.logs:
                 if log.name == "TokenCreated":
                     token_address = log.args[0]
-        elif tx_memo.tx_type == TxType.TOKENS_TRANSFERRED:
-            if tx_memo.note_to_user:
-                await context.bot.send_message(
-                    chat_id=tx_memo.associated_user_id,
-                    text=tx_memo.note_to_user,
-                    parse_mode=ParseMode.HTML
-                )
+            successful_token_deployment(token_address, tx_memo, context)
+        else:
+            # implement other transaction types as needed
+            logger.error(f"Unknown transaction type: {tx_memo.tx_type}")
 
 # lifespane is used by FastAPI on startup and shutdown: https://fastapi.tiangolo.com/advanced/events/
 # When the server is shutting down, the code after "yield" will be executec
@@ -121,17 +121,17 @@ async def lifespan(app: FastAPI):
 
     # lets start by checking that we have an escrow wallet provisioned for our account on the Sepolia network
     # if not we will exit since we must have one to continue
-    wallets = await oneshot_client.wallets.list(BUSINESS_ID, {"chain": "11155111", })
+    wallets = await oneshot_client.wallets.list(BUSINESS_ID, {"chain_id": "11155111", })
     if (len(wallets.response) != 1) and (float(wallets.response[0].account_balance_details.balance) > 0.0001):
         raise RuntimeError(
             "Escrow wallet not provisioned or insufficient balance on the Sepolia network. "
-            "Please ensure an escrow wallet exists and has sufficient funds by logging into https://1shotapi.com."
+            "Please ensure an escrow wallet exists and has sufficient funds by logging into https://app.1shotapi.dev/escrow-wallets."
         )
 
     # to keep this demo self contained, we are going to check our 1Shot API account for an existing transaction endpoint for the 
-    # contract at 0xA1BfEd6c6F1C3A516590edDAc7A8e359C2189A61 on the Sepolia network, if we don't have one, we'll create it
-    # then we'll use that endpoint in the conversation flow to deploy tokens from Telegram
-    # for a more serious application you will probably create your requried entrypont contract function endpionts ahead of time
+    # contract at 0xA1BfEd6c6F1C3A516590edDAc7A8e359C2189A61 on the Sepolia network, if we don't have one, we'll create it automatically
+    # then we'll use that endpoint in the conversation flow to deploy tokens from a Telegram conversation
+    # for a more serious application you will probably create your required contract function endpionts ahead of time
     # and input their transaction ids as environment variables
     transaction_endpoints = await oneshot_client.transactions.transactions.list(
         business_id=BUSINESS_ID,

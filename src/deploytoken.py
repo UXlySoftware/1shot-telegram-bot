@@ -32,6 +32,7 @@ from helpers import (
 from objects import (
     TransactionMemo,
     TxType,
+    TokenInfo,
     ConversationState, 
 )
 
@@ -83,15 +84,15 @@ async def finalize_token_deployment(update: Update, context: ContextTypes.DEFAUL
         return ConversationState.TOKEN_PREMINT
 
     # Gather all arguments
-    chain_id = '11155111' # Sepolia testnet
+    chain_id = '11155111' # example is hardcoded for the Sepolia testnet
     name = context.user_data["name"]
     ticker = context.user_data["ticker"]
     description = context.user_data["description"]
     image_file_id = context.user_data.get("image", None)  # Optional, in case no image was uploaded
     
-    # Its better to store escrow wallet ids as enironment variables
-    # but we will look it to demonstrate how to fetch wallets from 1Shot API
-    # For this demo to work, make sure there is only 1 wallet for the Sepolia network
+    # Its better to store escrow wallet ids as enironment variables or in your apps database
+    # but we will look it up to demonstrate how to fetch wallets from 1Shot API
+    # Note for this demo to work, make sure there is only 1 wallet in your organization for the Sepolia network
     wallet = await oneshot_client.wallets.list(BUSINESS_ID, {"chain_id": chain_id})
 
     transaction_endpiont = await oneshot_client.transactions.list(
@@ -101,9 +102,17 @@ async def finalize_token_deployment(update: Update, context: ContextTypes.DEFAUL
 
     # This message will come back to the bot when the transaction is executed
     # We can use the info to figure out how to react
+    # since we are using a pydantic dataclass, we can validate the content
+    token_info = TokenInfo(
+        name=name,
+        ticker=ticker,
+        description=description,
+        image_file_id=image_file_id
+    )
     memo = TransactionMemo(
         tx_type=TxType.TOKEN_CREATION.value,
-        associated_user_id=update.effective_user.id
+        associated_user_id=update.effective_user.id,
+        note_to_user=token_info.model_dump_json()
     )
 
     execution = await oneshot_client.transactions.execute(
@@ -117,18 +126,6 @@ async def finalize_token_deployment(update: Update, context: ContextTypes.DEFAUL
         memo=memo.model_dump_json()
     )
 
-    token = Token(
-        name=name,
-        ticker=ticker,
-        premint=int(premint),
-        admin=admin,
-        chain=execution.chain,
-        description=description,
-        image_id=image_file_id,
-        creator_id=update.effective_user.id,
-        execution_id=execution.id,
-    )
-
     buttons = [[InlineKeyboardButton(text="Back", callback_data="start")]]
     keyboard = InlineKeyboardMarkup(buttons)
     await update.message.reply_text(
@@ -139,59 +136,24 @@ async def finalize_token_deployment(update: Update, context: ContextTypes.DEFAUL
 
     return ConversationState.START_ROUTES # End the conversation
 
-async def successful_token_deployment(execution_id: str, token_address: str, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def successful_token_deployment(token_address: str, memo: TransactionMemo, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Notify the user that their token has been created."""
-    token = await get_token_by_execution_id(execution_id)
-    if token is not None:
-        chat_id = token.creator_id # Tokens are created in private chat
-        image_file_id = token.image_id
-        name = token.name
-        ticker = token.ticker
-        description = token.description
-        chain = token.chain
-        creator = token.creator_id
-        creator_details = await context.bot.get_chat(creator)
-        creator_mention = mention_html(creator_details.id, creator_details.first_name)
+    token_info = TokenInfo.model_validate_json(memo.note_to_user)
 
-        mint_endpoint = await make_token_mint_endpoint(chain, token_address, name)
-        grant_admint_endpoint = await make_token_grant_admin_endpoint(chain, token_address, name)
-        new_token_attributes = {
-            "mint_endpoint_id": mint_endpoint,
-            "grant_admin_endpoint_id": grant_admint_endpoint,
-            "address": token_address,
-        }
-        await set_token_attributes(execution_id, new_token_attributes)
+    success_message = (
+        f"<code>New Coin Created!</code>\n\n"
+        f"<b>Name:</b> {token_info.name}\n"
+        f"<b>Ticker:</b> {token_info.ticker}\n"
+        f"<b>Description:</b> {token_info.description}\n"
+        f"Address: <a href='https://sepolia.etherscan.io/token/{token_address}'>{token_address}</a>\n"
+    )
 
-        success_message = (
-            f"<code>New Coin Created!</code>\n\n"
-            f"<b>Name:</b> {name}\n"
-            f"<b>Ticker:</b> {ticker}\n"
-            f"<b>Description:</b> {description}\n"
-            f"<b>Creator:</b> {creator_mention}\n"
-            f"<b>Chain:</b> {get_chain_name_from_chain_id(chain)}\n"
-            f"Address: <a href='{BlockExplorers[chain]}/token/{token_address}'>{token_address}</a>\n"
-        )
-
-        # then notify the public channel
-        public_message = await context.bot.send_photo(
-            chat_id="@coinucopiadotfinance", 
-            photo=image_file_id, 
-            caption=success_message, 
-            parse_mode=ParseMode.HTML
-            )
-        
-        # Telegram link format: https://t.me/<username>/<message_id>
-        public_message_link = f"https://t.me/{"coinucopiadotfinance"}/{public_message.message_id}"
-
-        # notify the user in the private chat
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"{name} deployed!\n\n<a href='{public_message_link}'>📣 Now share it with others.</a>",
-            parse_mode=ParseMode.HTML
-        )
-        #await context.bot.send_photo(chat_id=chat_id, photo=image_file_id, caption=success_message, parse_mode=ParseMode.HTML)
-    else:
-        raise ValueError(f"Token with execution ID {execution_id} not found in the database.")
+    await context.bot.send_photo(
+        chat_id=memo.associated_user_id, 
+        photo=token_info.image_file_id, 
+        caption=success_message, 
+        parse_mode=ParseMode.HTML
+    )
 
 def get_token_deployment_conversation_handler() -> ConversationHandler:
     """Create and return the conversation handler for token deployment."""

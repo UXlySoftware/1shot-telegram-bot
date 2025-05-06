@@ -19,7 +19,14 @@ class TxType(Enum):
 class TransactionMemo(BaseModel):
     tx_type: TxType = Field(..., description="The kind of transaction that was executed.") 
     associated_user_id: int = Field(..., description="The user id of the user that executed the transaction.")
-    note_to_user: Optional[str] = Field(None, description="Info to relay to the associated_user")
+    note_to_user: Optional[str] = Field(None, description="Arbitrary info to relay to the associated_user")
+
+# we'll use this to store token information so we can send the user a message when the token is created
+class TokenInfo(BaseModel):
+    name: str = Field(..., description="The name of the token.")
+    ticker: str = Field(..., description="The ticker symbol for the token.")
+    description: str = Field(..., description="A description of the token.")
+    image_file_id: str = Field(..., description="The file id of the token image.")
 
 # user enums to define the different states of your Telegram bot conversation flows
 class ConversationState(Enum):
