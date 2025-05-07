@@ -41,7 +41,7 @@ def is_valid_ethereum_address(address: str) -> bool:
 # Can be used as a general fallback function to end conversation flows
 async def canceler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancel the conversation."""
-    await update.message.reply_text("Coinucopia task canceled.")
+    await update.message.reply_text("bye 👋")
     context.user_data[ConversationState.START_OVER] = False
     return ConversationHandler.END
 
