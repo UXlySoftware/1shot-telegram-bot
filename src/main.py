@@ -14,13 +14,14 @@ from objects import (
 # the file contains various helper functions for the bot
 from helpers import (
     canceler,
-    get_token_deployer_endpoint_creation_payload
+    get_token_deployer_endpoint_creation_payload, 
+    webhookAuthenticator
 )
 
 # this file shows how you can track what chats your bot has been added to
 from chattracker import track_chats
 
-# this file shows how you can implement a non-trivial conversation flow that deployes and ERC20 token
+# this file shows how you can implement a non-trivial conversation flow that deploys and ERC20 token
 from deploytoken import (
     get_token_deployment_conversation_handler,
     successful_token_deployment
@@ -33,9 +34,9 @@ from oneshot import (
 )
 
 # the 1Shot Python SDK implements a helpful Pydantic dataclass model for Webhook callback payloads
-from uxly_1shot_client import WebhookPayload, verify_webhook
+from uxly_1shot_client import WebhookPayload
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.responses import PlainTextResponse, Response
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -122,7 +123,7 @@ async def lifespan(app: FastAPI):
     # lets start by checking that we have an escrow wallet provisioned for our account on the Sepolia network
     # if not we will exit since we must have one to continue
     wallets = await oneshot_client.wallets.list(BUSINESS_ID, {"chain_id": "11155111"})
-    if (len(wallets.response) != 1) and (float(wallets.response[0].account_balance_details.balance) > 0.0001):
+    if not ((len(wallets.response) >= 1) and (float(wallets.response[0].account_balance_details.balance) > 0.0001)):
         raise RuntimeError(
             "Escrow wallet not provisioned or insufficient balance on the Sepolia network. "
             "Please ensure an escrow wallet exists and has sufficient funds by logging into https://app.1shotapi.dev/escrow-wallets."
@@ -144,7 +145,8 @@ async def lifespan(app: FastAPI):
         deployer_endpoint_payload = get_token_deployer_endpoint_creation_payload(
             chain_id="11155111",
             contract_address="0xA1BfEd6c6F1C3A516590edDAc7A8e359C2189A61",
-            escrow_wallet_id=wallets.response[0].id
+            escrow_wallet_id=wallets.response[0].id,
+            callback=f"{URL}/1shot"
         )
         new_transaction_endpoint = await oneshot_client.transactions.create(
             business_id=BUSINESS_ID,
@@ -201,44 +203,16 @@ async def telegram(request: Request):
     return Response(status_code=HTTPStatus.OK)
 
 # This route is for 1shot to send updates to the bot about transactions that the bot initiated
-@app.api_route("/1shot", methods=["POST"])
+# check out the webhookAuthenticator class in helpers.py for how to verify the signature
+# https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-in-path-operation-decorators/
+@app.api_route("/1shot", methods=["POST"], dependencies=[Depends(webhookAuthenticator())])
 async def oneshot_updates(request: Request):
-    try:
-        body = await request.json()
-        webhook_payload = WebhookPayload(**body)
-
-        # we'll now authenticate the callback to make sure it came from 1Shot API
-        # we need to look up the public key of our endpoint (each endpoint creates has its own public key) 
-        # this will be slow in production, so if you have a lot of users making transactions, a better 
-        # strategy would be to store the public keys in your bot's database for faster access
-        # more info on 1Shot Webhooks here: https://docs.1shotapi.com/transactions.html#webhooks
-        transaction_endpoints = await oneshot_client.transactions.list(
-            business_id=BUSINESS_ID,
-            params={"chain_id": "11155111", "name": "1Shot Demo Sepolia Token Deployer"}
-        )
-        webhook_public_key = transaction_endpoints.response[0].public_key
-
-        signature = body.pop("signature", None)
-
-        if not signature or not webhook_public_key:
-            raise HTTPException(status_code=400, detail="Signature or public key missing")
-        
-        is_valid = verify_webhook(
-            body=body,
-            signature=signature,
-            public_key=webhook_public_key
-        )
-
-        if not is_valid:
-            raise HTTPException(status_code=403, detail="Invalid signature")
-
-        # we put objects of type WebhookPayload into the update queue
-        # Updates will trigger the webhook_update handler via the TypeHandler registered on startup
-        await app.application.update_queue.put(webhook_payload)
-        return Response(status_code=HTTPStatus.OK)
-    except Exception as e:
-        logger.error(f"Error processing 1Shot webhook: {e}")
-        return Response(status_code=HTTPStatus.NOT_ACCEPTABLE)
+    # we put objects of type WebhookPayload into the update queue
+    # Updates will trigger the webhook_update handler via the TypeHandler registered on startup
+    body = await request.json()
+    webhook_payload = WebhookPayload(**body)
+    await app.application.update_queue.put(webhook_payload)
+    return Response(status_code=HTTPStatus.OK)
 
 # This is a simple healthcheck endpoint to verify that the bot is running
 @app.get("/healthcheck")

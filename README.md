@@ -69,11 +69,7 @@ docker compose --env-file docker-compose.env up -d
 You can see the callbacks coming to your bot from Telegram and 1Shot API by using the [Ngrok agent dashboard](http://localhost:4040) (this link won't work if the ngrok container is not up) provided by the Ngrok container. This is will be a helpful debugging tool while you develope your applciation.
 
 The `docker-compose.yaml` file is setup to mount the `src` directory into the `/bot` directory of the Telegram bot's container. You can
-make edits to the source code while the bot is running and then reload the bot quickly like this:
-
-```sh
-docker compose restart telegram-service
-```
+make edits to the source code while the bot is running and `uvicorn` will hot reload the server for you when you save.
 
 > [!NOTE] 
 > If you add new environment variables or change the docker configuration you'll need to run `docker compose down` then rerun `docker compose --env-file docker-compose.env up -d`

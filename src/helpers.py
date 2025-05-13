@@ -1,18 +1,22 @@
 from telegram import Chat, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
+from fastapi import Request, HTTPException
+
 from oneshot import (
     oneshot_client,
-    BUSINESS_ID
 )
 
 from objects import ConversationState
 
+from uxly_1shot_client import verify_webhook
+
 import re
 import os
-from typing import Dict, Any
+import logging
+from typing import Dict
 
-CALLBACK_URL = os.getenv("TUNNEL_BASE_URL") + "/1shot"
+logger = logging.getLogger(__name__)
 
 # Python doesn't have a built-in BigInt type, so we use a string to represent large integers
 def convert_to_wei(amount: str) -> str:
@@ -46,7 +50,7 @@ async def canceler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return ConversationHandler.END
 
 
-def get_token_deployer_endpoint_creation_payload(chain_id: str, contract_address: str, escrow_wallet_id: str) -> Dict[str, str]:
+def get_token_deployer_endpoint_creation_payload(chain_id: str, contract_address: str, escrow_wallet_id: str, callback: str) -> Dict[str, str]:
      return {
         "chain": chain_id,
         "contractAddress": contract_address,
@@ -54,7 +58,7 @@ def get_token_deployer_endpoint_creation_payload(chain_id: str, contract_address
         "name": f"1Shot Demo Sepolia Token Deployer",
         "description": f"This deploys ERC20 tokens on the Sepolia testnet.",
         "functionName": "deployToken",
-        "callbackUrl": f"{CALLBACK_URL}",
+        "callbackUrl": f"{callback}",
         "stateMutability": "nonpayable",
         "inputs": [
             {
@@ -80,3 +84,40 @@ def get_token_deployer_endpoint_creation_payload(chain_id: str, contract_address
         ],
         "outputs": []
     }
+
+# example of a wrapper class to handle webhook verification with FastAPI
+# rather than looking up the public key from 1Shot API each time, you could store it in a database or cache
+class webhookAuthenticator:
+    # you could do something with the constructor like set up a database connection
+    def __init__(self):
+        logger.info("Webhook Authenticator initialized.")
+
+    async def __call__(self, request: Request):
+        try:
+            # Extract the required fields from the request
+            body = await request.json()  # Raw request body
+
+            if not body["signature"]:
+                raise HTTPException(status_code=400, detail="Signature field missing")
+            
+            # look up the transaction endpoint that generated the callback and get the public key
+            # in a production application, store the public key in a database or cache for faster access
+            transaction_endpoint = await oneshot_client.transactions.get(
+                transaction_id=body["data"]["transactionId"],
+            )
+
+            if not transaction_endpoint.public_key:
+                raise HTTPException(status_code=400, detail="Public key not found")
+
+            # Verify the signature with the public key you stored corresponding to the transaction ID
+            is_valid = verify_webhook(
+                body=body,
+                signature=body["signature"],
+                public_key=transaction_endpoint.public_key
+            )
+
+            if not is_valid:
+                raise HTTPException(status_code=403, detail="Invalid signature")
+        except Exception as e:
+            logger.error(f"Error verifying webhook: {e}")
+            raise HTTPException(status_code=500, detail=f"Internal error: {e}")

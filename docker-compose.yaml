@@ -20,7 +20,7 @@ services:
     container_name: telegram
     volumes:
       - ./src:/bot
-    command: python main.py
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       TUNNEL_BASE_URL: ${TUNNEL_BASE_URL}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
