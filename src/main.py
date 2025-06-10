@@ -120,7 +120,7 @@ async def lifespan(app: FastAPI):
         Application.builder().token(TOKEN).updater(None).build()
     )
 
-    # lets start by checking that we have an escrow wallet provisioned for our account on the Sepolia network
+    # lets start by checking that we have a wallet provisioned for our 1Shot API account on the Sepolia network
     # if not we will exit since we must have one to continue
     wallets = await oneshot_client.wallets.list(BUSINESS_ID, {"chain_id": "11155111"})
     if not ((len(wallets.response) >= 1) and (float(wallets.response[0].account_balance_details.balance) > 0.0001)):
@@ -131,24 +131,24 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Escrow wallet is provisioned and has sufficient funds.")
 
-    # to keep this demo self contained, we are going to check our 1Shot API account for an existing transaction endpoint for the 
+    # to keep this demo self contained, we are going to check our 1Shot API account for an existing contract method endpoint for the 
     # contract at 0xA1BfEd6c6F1C3A516590edDAc7A8e359C2189A61 on the Sepolia network, if we don't have one, we'll create it automatically
     # then we'll use that endpoint in the conversation flow to deploy tokens from a Telegram conversation
-    # for a more serious application you will probably create your required contract function endpionts ahead of time
-    # and input their transaction ids as environment variables
-    transaction_endpoints = await oneshot_client.transactions.list(
+    # for a more serious application you will probably create your required contract method endpoints ahead of time
+    # and input their contract method ids as environment variables
+    contract_methods = await oneshot_client.contract_methods.list(
         business_id=BUSINESS_ID,
         params={"chain_id": "11155111", "name": "1Shot Demo Sepolia Token Deployer"}
     )
-    if len(transaction_endpoints.response) == 0:
-        logger.info("Creating new transaction endpoint for token deployer contract.")
+    if len(contract_methods.response) == 0:
+        logger.info("Creating new smart contract method for token deployer contract.")
         deployer_endpoint_payload = get_token_deployer_endpoint_creation_payload(
             chain_id="11155111",
             contract_address="0xA1BfEd6c6F1C3A516590edDAc7A8e359C2189A61",
             escrow_wallet_id=wallets.response[0].id,
             callback=f"{URL}/1shot"
         )
-        new_transaction_endpoint = await oneshot_client.transactions.create(
+        contract_method = await oneshot_client.contract_method.create(
             business_id=BUSINESS_ID,
             params=deployer_endpoint_payload
         )

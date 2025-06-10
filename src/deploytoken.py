@@ -95,7 +95,7 @@ async def finalize_token_deployment(update: Update, context: ContextTypes.DEFAUL
     # Note for this demo to work, make sure there is only 1 wallet in your organization for the Sepolia network
     wallet = await oneshot_client.wallets.list(BUSINESS_ID, {"chain_id": chain_id})
 
-    transaction_endpiont = await oneshot_client.transactions.list(
+    contract_method = await oneshot_client.contract_methods.list(
         business_id=BUSINESS_ID,
         params={"page": 1, "page_size": 10, "chain_id": "11155111", "name": "1Shot Demo Sepolia Token Deployer"}
     )
@@ -115,8 +115,8 @@ async def finalize_token_deployment(update: Update, context: ContextTypes.DEFAUL
         note_to_user=token_info.model_dump_json()
     )
 
-    execution = await oneshot_client.transactions.execute(
-        transaction_id=transaction_endpiont.response[0].id,
+    transaction = await oneshot_client.contract_methods.execute(
+        contract_method_id=contract_method.response[0].id,
         params={
             "name": name,
             "ticker": ticker,
@@ -125,7 +125,7 @@ async def finalize_token_deployment(update: Update, context: ContextTypes.DEFAUL
         },
         memo=memo.model_dump_json()
     )
-    logger.info(f"Token creation transaction executed: {execution.id}")
+    logger.info(f"Token creation transaction executed: {transaction.id}")
 
     buttons = [[InlineKeyboardButton(text="Back", callback_data="start")]]
     keyboard = InlineKeyboardMarkup(buttons)

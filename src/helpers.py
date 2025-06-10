@@ -52,11 +52,11 @@ async def canceler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 def get_token_deployer_endpoint_creation_payload(chain_id: str, contract_address: str, escrow_wallet_id: str, callback: str) -> Dict[str, str]:
      return {
-        "chain": chain_id,
+        "chain_id": chain_id,
         "contractAddress": contract_address,
-        "escrowWalletId": escrow_wallet_id,
-        "name": f"1Shot Demo Sepolia Token Deployer",
-        "description": f"This deploys ERC20 tokens on the Sepolia testnet.",
+        "walletId": escrow_wallet_id,
+        "name": "1Shot Demo Sepolia Token Deployer",
+        "description": "This deploys ERC20 tokens on the Sepolia testnet.",
         "functionName": "deployToken",
         "callbackUrl": f"{callback}",
         "stateMutability": "nonpayable",
@@ -100,20 +100,20 @@ class webhookAuthenticator:
             if not body["signature"]:
                 raise HTTPException(status_code=400, detail="Signature field missing")
             
-            # look up the transaction endpoint that generated the callback and get the public key
+            # look up the contract method endpoint that generated the callback and get the public key
             # in a production application, store the public key in a database or cache for faster access
-            transaction_endpoint = await oneshot_client.transactions.get(
-                transaction_id=body["data"]["transactionId"],
+            contract_method = await oneshot_client.contract_methods.get(
+                contract_method_id=body["data"]["transactionId"],
             )
 
-            if not transaction_endpoint.public_key:
+            if not contract_method.public_key:
                 raise HTTPException(status_code=400, detail="Public key not found")
 
             # Verify the signature with the public key you stored corresponding to the transaction ID
             is_valid = verify_webhook(
                 body=body,
                 signature=body["signature"],
-                public_key=transaction_endpoint.public_key
+                public_key=contract_method.public_key
             )
 
             if not is_valid:
